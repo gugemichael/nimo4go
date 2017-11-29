@@ -1,4 +1,4 @@
-package mocha
+package nimo
 
 import (
 	"bufio"
@@ -40,20 +40,18 @@ func (loader *ConfigLoader) SetDateFormat(format string) {
 // Load load config from file to target's field by reflect
 func (loader *ConfigLoader) Load(target interface{}) error {
 	if target == nil {
-		return errors.New("Target is nil error")
+		return errors.New("target is nil error")
 	}
-
 	// fetch all target's field member
 	instance := reflect.ValueOf(target).Elem()
 	injected := 0
 
 	if !instance.IsValid() || instance.Kind() != reflect.Struct {
-		return errors.New("Target is not a valid struct type")
+		return errors.New("target is not a valid struct type")
 	}
 
 	// file content reader. handled line by line
 	reader := bufio.NewReader(loader.conf)
-
 	for {
 		if buffer, _, err := reader.ReadLine(); err == nil {
 			// reach the end of File EOF
@@ -124,7 +122,7 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 		} else {
 			if err == io.EOF {
 				if injected == 0 {
-					return errors.New("File is empty without any configuration")
+					return errors.New("file is empty without any configuration")
 				}
 				return nil
 			}
@@ -144,5 +142,5 @@ func lookupTagMember(target interface{}, tag string) (string, int, error) {
 			return types.Elem().Field(i).Name, GenericTypeRaw, nil
 		}
 	}
-	return "", -1, fmt.Errorf("no tagged field [%s] found !", tag)
+	return "", -1, fmt.Errorf("no tagged field [%s] found", tag)
 }

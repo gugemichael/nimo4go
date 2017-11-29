@@ -1,4 +1,4 @@
-package mocha
+package nimo
 
 import (
 	"fmt"
@@ -42,32 +42,28 @@ func NewLogHelper(v ...interface{}) (*LogHelper, error) {
 	if len(v) == 0 {
 		mylog.Logger[0] = log.New(os.Stdout, "TRACE - ", FLAGS)
 		mylog.Logger[1] = log.New(os.Stderr, "ERROR - ", FLAGS)
-	} else {
-
-		fileName := v[0].(string)
-
-		// app.log & app.log.error
-		mylog.LogFileNames = [2]string{fileName, fileName + ".error"}
-
-		// check dir wether exist and mkdir
-		if _, err := os.Stat(path.Dir(mylog.LogFileNames[0])); err != nil {
-			os.Mkdir(path.Dir(mylog.LogFileNames[0]), 0777)
-		}
-
-		if logFile, err := os.OpenFile(mylog.LogFileNames[0], mask, 0666); err == nil {
-			mylog.Logger[0] = log.New(logFile, "TRACE - ", FLAGS)
-			mylog.Logger[0].Flags()
-		} else {
-			return nil, err
-		}
-
-		if logFile, err := os.OpenFile(mylog.LogFileNames[1], mask, 0666); err == nil {
-			mylog.Logger[1] = log.New(logFile, "ERROR - ", FLAGS)
-		} else {
-			return nil, err
-		}
+		return &mylog, nil
+	}
+	fileName := v[0].(string)
+	// app.log & app.log.error
+	mylog.LogFileNames = [2]string{fileName, fileName + ".error"}
+	// check dir wether exist and mkdir
+	if _, err := os.Stat(path.Dir(mylog.LogFileNames[0])); err != nil {
+		os.Mkdir(path.Dir(mylog.LogFileNames[0]), 0777)
 	}
 
+	if logFile, err := os.OpenFile(mylog.LogFileNames[0], mask, 0666); err == nil {
+		mylog.Logger[0] = log.New(logFile, "TRACE - ", FLAGS)
+		mylog.Logger[0].Flags()
+	} else {
+		return nil, err
+	}
+
+	if logFile, err := os.OpenFile(mylog.LogFileNames[1], mask, 0666); err == nil {
+		mylog.Logger[1] = log.New(logFile, "ERROR - ", FLAGS)
+	} else {
+		return nil, err
+	}
 	return &mylog, nil
 }
 
@@ -98,7 +94,6 @@ func (log *LogHelper) Error(v ...interface{}) {
 		// find the syntex context, and checkout the
 		// around log there
 		log.Logger[0].Output(2, fmt.Sprintln(v...))
-
 		log.Logger[1].Output(2, fmt.Sprintln(v...))
 	}
 }
