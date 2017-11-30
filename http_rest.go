@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -14,61 +15,72 @@ const (
 )
 
 type HttpRestProvider struct {
-	controller map[URL]*HandlerList
+	controller map[HttpURL][]HandlerFunc
 	port       int
 }
 
-type URL struct {
-	uri    string
-	method string
-}
+type HandlerFunc func(body []byte) interface{}
 
-type HandlerList struct {
-	handers []func(body []byte) interface{}
+type HttpURL struct {
+	Uri    string
+	Method string
 }
 
 func NewHttpRestProvdier(port int) *HttpRestProvider {
-	return &HttpRestProvider{controller: make(map[URL]*HandlerList, 512), port: port}
+	return &HttpRestProvider{controller: make(map[HttpURL][]HandlerFunc, 512), port: port}
 }
 
 func (rest *HttpRestProvider) Listen() error {
 	for web, handlerList := range rest.controller {
 		register(web, handlerList)
 	}
+	// list overall registered http resource and uri
+	register(HttpURL{"/", HttpGet}, []HandlerFunc{func(body []byte) interface{} {
+		var maps []HttpURL
+		for contr := range rest.controller {
+			maps = append(maps, contr)
+		}
+		return maps
+	}})
+
 	return http.ListenAndServe(fmt.Sprintf(":%d", rest.port), nil)
 }
 
 func (rest *HttpRestProvider) RegisterAPI(url string, method string, handler func(body []byte) interface{}) {
-	if c, exist := rest.controller[URL{uri: url, method: method}]; exist {
-		c.handers = append(c.handers, handler)
+	// http root url is responsible for show registered handlers
+	if len(url) == 0 || url == "/" {
+		return
+	}
+	identifier := HttpURL{Uri: url, Method: method}
+
+	if _, exist := rest.controller[identifier]; exist {
+		rest.controller[identifier] = append(rest.controller[identifier], handler)
 	} else {
-		rest.controller[URL{uri: url, method: method}] = &HandlerList{
-			handers: []func([]byte) interface{}{handler},
-		}
+		rest.controller[identifier] = []HandlerFunc{handler}
 	}
 }
 
-func register(web URL, handlerList *HandlerList) {
-	http.HandleFunc(web.uri, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != web.method {
+func register(web HttpURL, handlerList []HandlerFunc) {
+	http.HandleFunc(web.Uri, func(w http.ResponseWriter, req *http.Request) {
+		if strings.ToUpper(req.Method) != strings.ToUpper(web.Method) {
 			return
 		}
 		// read full body content
-		body, _ := ioutil.ReadAll(r.Body)
+		body, _ := ioutil.ReadAll(req.Body)
 
 		var v []byte
-		var stuff interface{}
-		if len(handlerList.handers) > 1 {
+		var response interface{}
+		if len(handlerList) == 1 {
+			response = handlerList[0](body)
+		} else {
 			var results []interface{}
 			// aggregate all results if multi-controller register
-			for _, handler := range handlerList.handers {
+			for _, handler := range handlerList {
 				results = append(results, handler(body))
 			}
-			stuff = results
-		} else {
-			stuff = handlerList.handers[0](body)
+			response = results
 		}
-		v, _ = json.Marshal(stuff)
+		v, _ = json.Marshal(response)
 		w.Write(v)
 	})
 }
