@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"time"
 )
+
+const DefaultSeparator = ';'
 
 var onlyAlpha = regexp.MustCompile("^[a-zA-Z0-9_-]+")
 
@@ -26,15 +27,21 @@ type ConfigLoader struct {
 
 	// date format string
 	format string
+	// string slice separator
+	separator rune
 }
 
 // NewConfigLoader new loader
 func NewConfigLoader(file *os.File) *ConfigLoader {
-	return &ConfigLoader{conf: file}
+	return &ConfigLoader{conf: file, separator: DefaultSeparator}
 }
 
 func (loader *ConfigLoader) SetDateFormat(format string) {
 	loader.format = format
+}
+
+func (loader *ConfigLoader) SetSliceSeparator(sep rune) {
+	loader.separator = sep
 }
 
 // Load load config from file to target's field by reflect
@@ -44,7 +51,6 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 	}
 	// fetch all target's field member
 	instance := reflect.ValueOf(target).Elem()
-	injected := 0
 
 	if !instance.IsValid() || instance.Kind() != reflect.Struct {
 		return errors.New("target is not a valid struct type")
@@ -108,7 +114,7 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 						return fmt.Errorf("unsigned integer key %s wrong format %v", key, value)
 					}
 				case reflect.Slice: // for slice
-					items := strings.Split(value, ";")
+					items := strings.Split(value, string(loader.separator))
 					filtered := make([]string, 0, len(items))
 					for _, item := range items {
 						if s := strings.TrimSpace(item); len(s) != 0 {
@@ -117,16 +123,7 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 					}
 					field.Set(reflect.ValueOf(filtered))
 				}
-				injected++
 			}
-		} else {
-			if err == io.EOF {
-				if injected == 0 {
-					return errors.New("file is empty without any configuration")
-				}
-				return nil
-			}
-			return err
 		}
 	}
 }
