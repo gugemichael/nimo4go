@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 	"time"
 )
 
-const DefaultSeparator = ';'
+const DefaultSeparator = ";"
 
 var onlyAlpha = regexp.MustCompile("^[a-zA-Z0-9_-]+")
 
@@ -28,7 +29,7 @@ type ConfigLoader struct {
 	// date format string
 	format string
 	// string slice separator
-	separator rune
+	separator string
 }
 
 // NewConfigLoader new loader
@@ -40,7 +41,7 @@ func (loader *ConfigLoader) SetDateFormat(format string) {
 	loader.format = format
 }
 
-func (loader *ConfigLoader) SetSliceSeparator(sep rune) {
+func (loader *ConfigLoader) SetSliceSeparator(sep string) {
 	loader.separator = sep
 }
 
@@ -114,18 +115,46 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 						return fmt.Errorf("unsigned integer key %s wrong format %v", key, value)
 					}
 				case reflect.Slice: // for slice
-					items := strings.Split(value, string(loader.separator))
-					filtered := make([]string, 0, len(items))
-					for _, item := range items {
-						if s := strings.TrimSpace(item); len(s) != 0 {
-							filtered = append(filtered, s)
+					if items, err := loader.extractList(value); err == nil {
+						filtered := make([]string, 0, len(items))
+						for _, item := range items {
+							if s := strings.TrimSpace(item); len(s) != 0 {
+								filtered = append(filtered, s)
+							}
 						}
+						field.Set(reflect.ValueOf(filtered))
+					} else {
+						return err
 					}
-					field.Set(reflect.ValueOf(filtered))
 				}
 			}
 		}
 	}
+}
+
+func (loader *ConfigLoader) extractList(value string) ([]string, error) {
+	segments := make([]string, 0)
+	if strings.HasPrefix(value, "@@") {
+		// we need to fetch the content from specific file
+		if ref, err := os.Open(fmt.Sprintf("%s%c%s", filepath.Dir(loader.conf.Name()),
+			filepath.Separator, value[2:])); err == nil {
+			reader := bufio.NewReader(ref)
+			for {
+				line, end, err := reader.ReadLine()
+				if end || err != nil {
+					break
+				}
+				if !isComment(strings.TrimSpace(string(line))) {
+					segments = append(segments, string(line))
+				}
+			}
+		} else {
+			return nil, err
+		}
+	} else {
+		segments = strings.Split(value, DefaultSeparator)
+	}
+	return segments, nil
 }
 
 func lookupTagMember(target interface{}, tag string) (string, int, error) {
@@ -140,4 +169,8 @@ func lookupTagMember(target interface{}, tag string) (string, int, error) {
 		}
 	}
 	return "", -1, fmt.Errorf("no tagged field [%s] found", tag)
+}
+
+func isComment(line string) bool {
+	return strings.HasPrefix(line, "#")
 }
