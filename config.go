@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -52,6 +53,7 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 	}
 	// fetch all target's field member
 	instance := reflect.ValueOf(target).Elem()
+	injected := 0
 
 	if !instance.IsValid() || instance.Kind() != reflect.Struct {
 		return errors.New("target is not a valid struct type")
@@ -65,7 +67,7 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 			line := strings.Trim(string(buffer), " \r\n")
 
 			// skip start with "#". it's comment
-			if !strings.HasPrefix(line, "#") && len(line) != 0 {
+			if !isComment(line) && len(line) != 0 {
 				pair := strings.SplitN(line, "=", 2)
 				key := strings.Trim(pair[0], " ")
 				if len(pair) != 2 || !onlyAlpha.MatchString(key) {
@@ -125,6 +127,13 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 						field.Set(reflect.ValueOf(filtered))
 					} else {
 						return err
+					}
+				}
+				injected++
+			} else {
+				if err == io.EOF {
+					if injected == 0 {
+						return errors.New("file is empty without any configuration")
 					}
 				}
 			}
