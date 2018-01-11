@@ -62,7 +62,7 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 	// file content reader. handled line by line
 	reader := bufio.NewReader(loader.conf)
 	for {
-		if buffer, _, err := reader.ReadLine(); err == nil {
+		if buffer, end, err := reader.ReadLine(); !end && err == nil {
 			// reach the end of File EOF
 			line := strings.Trim(string(buffer), " \r\n")
 
@@ -137,6 +137,8 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 					}
 				}
 			}
+		} else {
+			return nil
 		}
 	}
 }
