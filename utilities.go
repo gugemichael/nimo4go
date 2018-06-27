@@ -28,7 +28,7 @@ func NewSimpleRateController() *SimpleRateController {
 	return &SimpleRateController{tick: time.Now().Unix(), lock: new(sync.Mutex)}
 }
 
-func (controller *SimpleRateController) Control(threshold int64) bool {
+func (controller *SimpleRateController) Control(threshold, n int64) bool {
 	now := time.Now().Unix()
 	// current second is forward. we are behind
 	if now > controller.tick {
@@ -43,6 +43,6 @@ func (controller *SimpleRateController) Control(threshold int64) bool {
 	}
 	AssertTrue(now == controller.tick, "rate controller tick now correct !")
 
-	snapshot := atomic.AddInt64(&controller.token, 1)
+	snapshot := atomic.AddInt64(&controller.token, n)
 	return snapshot >= threshold
 }
