@@ -1,6 +1,11 @@
 package nimo
 
-import "time"
+import (
+	"time"
+	"runtime"
+	"strconv"
+	"bytes"
+)
 
 func GoRoutine(function func()) {
 	go func() {
@@ -29,4 +34,13 @@ func GoVarLoop(n uint64, function func()) {
 		function()
 		n--
 	}
+}
+
+func GetRoutineId() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	id, _ := strconv.ParseUint(string(b), 10, 64)
+	return id
 }
