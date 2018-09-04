@@ -98,7 +98,7 @@ func (loader *ConfigLoader) Load(target interface{}) error {
 			}
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64: // for numberic
 			if genericType == GenericTypeDate {
-				if t, e := time.ParseInLocation(loader.format, value, time.Local); e == nil {
+				if t, e := time.ParseInLocation(loader.format, value, time.UTC); e == nil {
 					field.SetInt(t.Unix())
 				} else {
 					return fmt.Errorf("integer conver to date format [%s] from (%s)", loader.format, value)
