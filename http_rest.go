@@ -17,6 +17,7 @@ const (
 type HttpRestProvider struct {
 	controller map[HttpURL][]HandlerFunc
 	port       int
+	serverMux  *http.ServeMux
 }
 
 type HandlerFunc func(body []byte) interface{}
@@ -26,16 +27,20 @@ type HttpURL struct {
 	Method string
 }
 
-func NewHttpRestProvdier(port int) *HttpRestProvider {
-	return &HttpRestProvider{controller: make(map[HttpURL][]HandlerFunc, 512), port: port}
+func NewHttpRestProvider(port int) *HttpRestProvider {
+	return &HttpRestProvider{
+		controller: make(map[HttpURL][]HandlerFunc, 512),
+		port:       port,
+		serverMux:  http.NewServeMux(),
+	}
 }
 
 func (rest *HttpRestProvider) Listen() error {
 	for web, handlerList := range rest.controller {
-		register(web, handlerList)
+		rest.register(web, handlerList)
 	}
 	// list overall registered http resource and uri
-	register(HttpURL{"/", HttpGet}, []HandlerFunc{func(body []byte) interface{} {
+	rest.register(HttpURL{"/", HttpGet}, []HandlerFunc{func(body []byte) interface{} {
 		var maps []HttpURL
 		for contr := range rest.controller {
 			maps = append(maps, contr)
@@ -43,7 +48,7 @@ func (rest *HttpRestProvider) Listen() error {
 		return maps
 	}})
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", rest.port), nil)
+	return http.ListenAndServe(fmt.Sprintf(":%d", rest.port), rest.serverMux)
 }
 
 func (rest *HttpRestProvider) RegisterAPI(url string, method string, handler func(body []byte) interface{}) {
@@ -60,8 +65,8 @@ func (rest *HttpRestProvider) RegisterAPI(url string, method string, handler fun
 	}
 }
 
-func register(web HttpURL, handlerList []HandlerFunc) {
-	http.HandleFunc(web.Uri, func(w http.ResponseWriter, req *http.Request) {
+func (rest *HttpRestProvider) register(web HttpURL, handlerList []HandlerFunc) {
+	rest.serverMux.HandleFunc(web.Uri, func(w http.ResponseWriter, req *http.Request) {
 		if strings.ToUpper(req.Method) != strings.ToUpper(web.Method) {
 			return
 		}
