@@ -166,6 +166,13 @@ func readAllLines(reader bufio.Reader) (lines []string) {
 			}
 		}
 	}
+
+	if len(buffered) != 0 {
+		line := strings.Trim(string(buffered), " \r\n")
+		if len(line) != 0 && !isComment(line) {
+			lines = append(lines, line)
+		}
+	}
 	return lines
 }
 
