@@ -145,14 +145,32 @@ func (loader *ConfigLoader) extractAsList(value string) ([]string, error) {
 }
 
 func readAllLines(reader bufio.Reader) (lines []string) {
+	buffered := make([]byte, 0, 8192)
 	for {
-		if buf, end, err := reader.ReadLine(); end || err != nil {
+		if buf, isPrefix, err := reader.ReadLine(); err != nil {
 			break
+		} else if isPrefix {
+			buffered = append(buffered, buf...)
 		} else {
+			if len(buffered) != 0 {
+				buffered = append(buffered, buf...)
+				buf = buffered
+			}
 			line := strings.Trim(string(buf), " \r\n")
 			if len(line) != 0 && !isComment(line) {
 				lines = append(lines, line)
 			}
+
+			if len(buffered) != 0 {
+				buffered = make([]byte, 0, 8192)
+			}
+		}
+	}
+
+	if len(buffered) != 0 {
+		line := strings.Trim(string(buffered), " \r\n")
+		if len(line) != 0 && !isComment(line) {
+			lines = append(lines, line)
 		}
 	}
 	return lines
