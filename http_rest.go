@@ -86,6 +86,15 @@ func (rest *HttpRestProvider) register(web HttpURL, handlerList []HandlerFunc) {
 			response = results
 		}
 		v, _ = json.Marshal(response)
+		// it works when importing promehttp handler for /metrics.
+		if web.Uri == "/metrics" {
+			str := string(v)
+			str = strings.ReplaceAll(str, "\\\"", "\"")
+			str = strings.ReplaceAll(str, "\\n", "\r\n")
+			str = strings.ReplaceAll(str, "\"", "")
+			fmt.Fprint(w, str)
+			return
+		}
 		w.Write(v)
 	})
 }
