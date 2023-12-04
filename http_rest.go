@@ -72,6 +72,10 @@ func (rest *HttpRestProvider) register(web HttpURL, handlerList []HandlerFunc) {
 		}
 		// read full body content
 		body, _ := ioutil.ReadAll(req.Body)
+		if web.Uri == "/metrics" {
+			fmt.Fprint(w, handlerList[0](body))
+			return
+		}
 
 		var v []byte
 		var response interface{}
